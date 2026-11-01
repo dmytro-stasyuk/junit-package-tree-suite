@@ -22,7 +22,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # The signing key has no passphrase, so none is configured; add gpg-passphrase here if the key ever gets one
+      # gpg-passphrase names the env var that holds the passphrase (the Release step sets it), not the passphrase itself
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
@@ -32,6 +32,7 @@ jobs:
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
 
       # Tag checkout leaves us in detached HEAD — switch to main
       - name: Checkout main branch
@@ -59,10 +60,14 @@ jobs:
           git tag -d rc
 
       # Run the full release: version set → changelog stamp → commit → deploy → tag → bump → commit → push
+      # GPG_PASSPHRASE must be set even though the key has none: an unset variable leaves the literal
+      # ${env.GPG_PASSPHRASE} in settings.xml, which the gpg plugin warns about. The secret is a single space
+      # (GitHub won't store an empty one).
       - name: Release
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: ./mvnw validate -Prelease
 
       # Rename rc → rc_X.Y.Z (pointing at original rc commit)
