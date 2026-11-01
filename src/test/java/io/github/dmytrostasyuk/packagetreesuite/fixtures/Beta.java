@@ -1,0 +1,15 @@
+package io.github.dmytrostasyuk.packagetreesuite.fixtures;
+
+import org.junit.jupiter.api.Test;
+
+/** Fixture: a test class the engine tests run through {@code PackageTreeSuiteEngine}. */
+public class Beta {
+
+    @Test
+    void test1() {
+    }
+
+    @Test
+    void test2() {
+    }
+}

@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.dmytro-stasyuk</groupId>
+    <artifactId>junit-package-tree-suite</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <name>JUnit Package Tree Suite</name>
+    <description>A JUnit Platform test engine that runs every test under a package and shows them in the test tree
+        nested by subpackage, mirroring the project's package layout</description>
+    <url>https://github.com/dmytro-stasyuk/junit-package-tree-suite</url>
+    <scm>
+        <connection>scm:git:git://github.com/dmytro-stasyuk/junit-package-tree-suite.git</connection>
+        <developerConnection>scm:git:ssh://github.com:dmytro-stasyuk/junit-package-tree-suite.git</developerConnection>
+        <url>https://github.com/dmytro-stasyuk/junit-package-tree-suite/tree/main</url>
+    </scm>
+    <developers>
+        <developer>
+            <name>Dmytro Stasyuk</name>
+            <email>d.stasyuk@gmail.com</email>
+            <organizationUrl>https://github.com/dmytro-stasyuk</organizationUrl>
+        </developer>
+    </developers>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- The lowest Java the library runs on; consumers on any newer JDK can use it. -->
+        <maven.compiler.release>11</maven.compiler.release>
+        <!-- The oldest JUnit line the engine compiles against; 5.12 added the discovery API it relies on. -->
+        <junit.version>5.12.2</junit.version>
+        <!-- Release-date stamp for CHANGELOG.md headers (see the release profile's stamp-changelog step). -->
+        <maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
+        <!--
+            Artifacts are signed only when publishing: the release profile's deploy step passes -Dgpg.skip=false.
+            Local builds (./mvnw install) need no GPG key.
+        -->
+        <gpg.skip>true</gpg.skip>
+        <central.waitUntil>uploaded</central.waitUntil>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- The engine API: descriptors, discovery requests, execution requests. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-engine</artifactId>
+        </dependency>
+        <!-- Builds the discovery request the engine hands to Jupiter for the suite's package. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+        </dependency>
+        <!-- The engine that finds and runs the tests; looked up at runtime, never referenced in code. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Runs the engine in-process in the library's own tests and records the events it reports. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-testkit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <!--
+                        The fixture classes under ...packagetreesuite.fixtures are test data the library's tests run
+                        through the engine. They are not tests of the library, so Surefire must not run them directly.
+                    -->
+                    <excludes>
+                        <exclude>**/fixtures/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+            </plugin>
+            <!-- Publishes a sources jar next to the main one, so IDEs can show the library's code and Javadoc. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Publishes a Javadoc jar, which Maven Central requires next to the main jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.10.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Signs every artifact, which Maven Central requires; skipped unless gpg.skip is false (see above). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.6</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Uploads to Maven Central through the Sonatype Central Portal on `deploy`. The credentials come from the
+                server entry "central" in settings.xml, which the release workflow writes from repository secrets.
+            -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.8.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                    <waitUntil>${central.waitUntil}</waitUntil>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            Release profile: automates the full release workflow.
+            Usage: ./mvnw validate -Prelease (run by .github/workflows/release.yml when the "rc" tag is pushed)
+
+            Steps performed:
+            1. Parse the current version (build-helper-maven-plugin)
+            2. Remove the -SNAPSHOT suffix (versions-maven-plugin via exec)
+            3. Stamp CHANGELOG.md: the Unreleased entries move under the new version's heading
+            4. Commit the release version
+            5. Build, test, sign, and deploy to Maven Central
+            6. Tag the release as release_X.Y.Z
+            7. Bump the minor version to the next -SNAPSHOT (X.Y+1.0-SNAPSHOT)
+            8. Commit the next development version
+            9. Push commits and tags to origin
+
+            Versions are plain semantic versions. A release always bumps the minor version afterwards; for a patch
+            or a new major version, set the SNAPSHOT version by hand before tagging (./mvnw versions:set).
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- Parse current version into components -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>parse-version</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>parse-version</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Orchestrate release steps -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <!-- Step 1: Set release version (remove -SNAPSHOT) -->
+                            <execution>
+                                <id>set-release-version</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>./mvnw</executable>
+                                    <arguments>
+                                        <argument>versions:set</argument>
+                                        <argument>-DnewVersion=${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
+                                        <argument>-DgenerateBackupPoms=false</argument>
+                                        <argument>-q</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 2: Stamp CHANGELOG.md — move Unreleased entries under new version heading -->
+                            <execution>
+                                <id>stamp-changelog</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>perl</executable>
+                                    <arguments>
+                                        <argument>-i</argument>
+                                        <argument>-pe</argument>
+                                        <argument>s/^## Unreleased$/## Unreleased\n\n### Added\n\n### Changed\n\n### Fixed\n\n### Removed\n\n## [${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}] - ${maven.build.timestamp}/</argument>
+                                        <argument>CHANGELOG.md</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 3: Commit release version -->
+                            <execution>
+                                <id>git-commit-release</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>git</executable>
+                                    <arguments>
+                                        <argument>commit</argument>
+                                        <argument>-am</argument>
+                                        <argument>Release ${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 4: Build, test, sign, and deploy to Maven Central -->
+                            <execution>
+                                <id>deploy-release</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>./mvnw</executable>
+                                    <arguments>
+                                        <argument>clean</argument>
+                                        <argument>deploy</argument>
+                                        <argument>-Dgpg.skip=false</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 5: Tag the release -->
+                            <execution>
+                                <id>git-tag</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>git</executable>
+                                    <arguments>
+                                        <argument>tag</argument>
+                                        <argument>release_${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 6: Bump to next minor SNAPSHOT version -->
+                            <execution>
+                                <id>set-next-snapshot</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>./mvnw</executable>
+                                    <arguments>
+                                        <argument>versions:set</argument>
+                                        <argument>-DnewVersion=${parsedVersion.majorVersion}.${parsedVersion.nextMinorVersion}.0-SNAPSHOT</argument>
+                                        <argument>-DgenerateBackupPoms=false</argument>
+                                        <argument>-q</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 7: Commit next development version -->
+                            <execution>
+                                <id>git-commit-snapshot</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>git</executable>
+                                    <arguments>
+                                        <argument>commit</argument>
+                                        <argument>-am</argument>
+                                        <argument>Next ${parsedVersion.majorVersion}.${parsedVersion.nextMinorVersion}.0-SNAPSHOT</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Step 8: Push commits and tags -->
+                            <execution>
+                                <id>git-push</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>git</executable>
+                                    <arguments>
+                                        <argument>push</argument>
+                                        <argument>origin</argument>
+                                        <argument>main</argument>
+                                        <argument>--tags</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
