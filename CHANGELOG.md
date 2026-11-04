@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [1.0.0] - 2026-11-04
+
+### Added
+
 - `@PackageTreeSuite`: an empty class with this annotation runs every JUnit Jupiter test under its package, shown in the test tree nested by subpackage, with each test class under the package it lives in.
 - Packages and classes appear in the same order as the IDE's project tree: subpackages first, then classes, each sorted by name, ignoring case and comparing numbers by value.
 - Each package node shows the number of tests under it, such as `checkout (42)`. The `showTestCounts` option turns this off.
